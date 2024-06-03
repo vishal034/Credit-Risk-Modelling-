@@ -1,22 +1,22 @@
-import pickle
-from sklearn.model_selection import GridSearchCV
-from sklearn.preprocessing import StandardScaler
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.preprocessing import LabelEncoder
-import xgboost as xgb
-from scipy.stats import f_oneway
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.metrics import r2_score
 from scipy.stats import chi2_contingency
+from scipy.stats import f_oneway
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, classification_report, precision_recall_fscore_support
 import warnings
 import os
+from sklearn.model_selection import GridSearchCV
+from sklearn.preprocessing import StandardScaler
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.preprocessing import LabelEncoder
+import xgboost as xgb
 import pathlib
+import pickle
 
 a1 = pd.read_excel('data/case_study1.xlsx')
 a2 = pd.read_excel('data/case_study2.xlsx')
@@ -38,36 +38,32 @@ df2 = df2.drop(columns_to_be_removed, axis=1)
 for i in df2.columns:
     df2 = df2.loc[df2[i] != -99999]
 
-# Checking common column names
+
 for i in list(df1.columns):
     if i in list(df2.columns):
         print(i)
 
-# Merge the two dataframes, inner join so that no nulls are present
+
 df = pd. merge(df1, df2, how='inner', left_on=[
                'PROSPECTID'], right_on=['PROSPECTID'])
 
-# check how many columns are categorical
 for i in df.columns:
     if df[i].dtype == 'object':
         print(i)
 
-# Chi-square test
+
 for i in ['MARITALSTATUS', 'EDUCATION', 'GENDER', 'last_prod_enq2',
           'first_prod_enq2']:
     chi2, pval, _, _ = chi2_contingency(
         pd.crosstab(df[i], df['Approved_Flag']))
     print(i, '---', pval)
-# Since p-value is less than 0.05, we reject the null Hypothesis, and not
-# removing any categorical columns
 
-# VIF for numerical columns
+# Since p-value is less than 0.05, we reject the null Hypothesis, and not
+
 numeric_columns = []
 for i in df.columns:
     if df[i].dtype != 'object' and i not in ['PROSPECTID', 'Approved_Flag']:
         numeric_columns.append(i)
-
-# VIF sequentially check
 
 vif_data = df[numeric_columns]
 total_columns = vif_data.shape[1]
@@ -89,7 +85,6 @@ for i in range(0, total_columns):
         print('Dropped - ', i, numeric_columns[i])
         vif_data = vif_data.drop([numeric_columns[i]], axis=1)
 
-# check Anova for columns_to_be_kept
 
 
 columns_to_be_kept_numerical = []
@@ -142,9 +137,8 @@ df_encoded.info()
 k = df_encoded.describe()
 
 # Machine Learing model fitting
-# Data processing
-
 # 1. Random Forest
+
 y = df_encoded['Approved_Flag']
 x = df_encoded. drop(['Approved_Flag'], axis=1)
 
@@ -283,10 +277,8 @@ for i, v in enumerate(['p1', 'p2', 'p3', 'p4']):
 x_train, x_test, y_train, y_test = train_test_split(
     x, y_encoded, test_size=0.2, random_state=42)
 
-# Define the XGBClassifier with the initial set of hyperparameters
 xgb_model = xgb.XGBClassifier(objective='multi:softmax', num_class=4)
 
-# Define the parameter grid for hyperparameter tuning
 
 param_grid = {
     'colsample_bytree': [0.1, 0.3, 0.5, 0.7, 0.9],
@@ -300,20 +292,13 @@ grid_search = GridSearchCV(
     estimator=xgb_model, param_grid=param_grid, cv=5, scoring='accuracy', n_jobs=-1)
 grid_search.fit(x_train, y_train)
 
-# Print the best hyperparameters
 print("Best Hyperparameters:", grid_search.best_params_)
 
-# Evaluate the model with the best hyperparameters on the test set
 best_model = grid_search.best_estimator_
 accuracy = best_model.score(x_test, y_test)
 print("Test Accuracy:", accuracy)
 
-# Best Hyperparameters: {'alpha': 10, 'colsample_bytree': 0.9,
-# 'learning_rate': 0.2, 'max_depth': 3, 'n_estimators': 200}
-
-
 # Based on risk appetite of the bank, you will suggest P1,P2,P3,P4 to the business end user
-
 
 with open('model.pkl', 'wb') as f:
     pickle.dump(xgb_model, f)
