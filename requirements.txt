@@ -1,4 +1,4 @@
-pikle
+pickle
 scikit-learn
 xgboost
 numpy
